@@ -29,63 +29,36 @@ window.open = function (url, target, features) {
 }
 
 document.addEventListener('click', hookClick, { capture: true })
-/**
- * 唤醒第三方网盘App的工具函数
- * @param {string} app - 应用名称: 'baidu' | 'thunder' | 'uc' | 'quark'
- */
-function checkAndWakeApp(app) {
-  // 定义各网盘的Scheme和安卓下载链接
-  const appConfig = {
-    baidu: {
-      scheme: 'baiduyun://',
-      downloadUrl: 'https://sj.qq.com/myapp/detail.htm?apkName=com.baidu.netdisk'
-    },
-    thunder: {
-      scheme: 'thunder://',
-      downloadUrl: 'https://sj.qq.com/myapp/detail.htm?apkName=com.xunlei.downloadprovider'
-    },
-    uc: {
-      scheme: 'ucbrowser://',
-      downloadUrl: 'https://sj.qq.com/myapp/detail.htm?apkName=com.UCMobile'
-    },
-    quark: {
-      scheme: 'quark://',
-      downloadUrl: 'https://sj.qq.com/myapp/detail.htm?apkName=com.quark.browser' // 夸克浏览器（含网盘功能）
-    }
-  };
-
-  // 获取对应应用的配置
-  const config = appConfig[app];
-  if (!config) {
-    console.error('不支持的应用类型');
-    return;
-  }
-
-  // 创建隐藏的iframe尝试唤醒
-  const iframe = document.createElement('iframe');
-  iframe.style.display = 'none';
-  iframe.src = config.scheme;
-  document.body.appendChild(iframe);
-
-  // 记录点击时间
-  const startTime = Date.now();
-
-  // 监听页面是否隐藏（App唤醒成功会切换到后台）
-  const visibilityChangeHandler = () => {
-    if (document.hidden) {
-      document.removeEventListener('visibilitychange', visibilityChangeHandler);
-      return;
-    }
-  };
-  document.addEventListener('visibilitychange', visibilityChangeHandler);
-
-  // 2秒后检查是否唤醒成功
-  setTimeout(() => {
-    document.body.removeChild(iframe);
+document.addEventListener('DOMContentLoaded', function() {
+    // 选择所有a标签
+    const links = document.querySelectorAll('a');
     
-    // 如果时间差很短，说明App未安装
-    if (Date.now() - startTime < 3000) {
-      window.location.href = config.downloadUrl;
-    }
-  }, 2000);
-}
+    // 为每个链接添加点击事件监听器
+    links.forEach(link => {
+        link.addEventListener('click', function(e) {
+            // 阻止默认行为
+            e.preventDefault();
+            
+            // 获取链接地址
+            const href = this.getAttribute('href');
+            
+            // 检查是否有href属性
+            if (href) {
+                // 使用InAppBrowser或其他方式打开链接
+                if (window.cordova && window.cordova.InAppBrowser) {
+                    // 如果是Cordova环境，使用InAppBrowser打开
+                    cordova.InAppBrowser.open(href, '_system', 'location=yes');
+                } else if (window.Android && typeof window.Android.openUrl === 'function') {
+                    // 如果是Android自定义WebView，调用原生方法
+                    window.Android.openUrl(href);
+                } else if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.openUrl) {
+                    // 如果是iOS自定义WebView，调用原生方法
+                    window.webkit.messageHandlers.openUrl.postMessage(href);
+                } else {
+                    // 普通浏览器环境，使用window.open
+                    window.open(href, '_blank');
+                }
+            }
+        });
+    });
+});
